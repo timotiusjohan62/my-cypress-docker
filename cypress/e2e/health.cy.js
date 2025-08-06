@@ -1,15 +1,19 @@
 describe('Backend + DB Health Check', () => {
   beforeEach(() => {
+    const gmt7Time = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
     cy.addEvidence('TEST_START', 'Health check test started', {
-      timestamp: new Date().toISOString(),
-      testFile: 'health.cy.js'
+      timestamp: gmt7Time.toISOString().replace('Z', '+07:00'),
+      testFile: 'health.cy.js',
+      timezone: 'GMT+7'
     });
   });
 
   afterEach(() => {
+    const gmt7Time = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
     cy.addEvidence('TEST_END', 'Health check test completed', {
-      timestamp: new Date().toISOString(),
-      result: 'completed'
+      timestamp: gmt7Time.toISOString().replace('Z', '+07:00'),
+      result: 'completed',
+      timezone: 'GMT+7'
     });
     cy.generateEvidenceReport();
   });

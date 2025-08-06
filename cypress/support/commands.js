@@ -14,9 +14,17 @@
 
 let testEvidence = [];
 
+// Helper function to get GMT+7 timestamp
+function getGMT7Timestamp() {
+  const now = new Date();
+  // Add 7 hours (7 * 60 * 60 * 1000 milliseconds)
+  const gmt7Time = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+  return gmt7Time.toISOString().replace('Z', '+07:00');
+}
+
 // Command to log test step with JSON evidence
 Cypress.Commands.add('logStep', (stepDescription, additionalData = {}) => {
-  const timestamp = new Date().toISOString();
+  const timestamp = getGMT7Timestamp();
   const testName = Cypress.currentTest.title;
   const specName = Cypress.spec.name.replace('.cy.js', '');
   
@@ -38,7 +46,7 @@ Cypress.Commands.add('logStep', (stepDescription, additionalData = {}) => {
 // Command to capture API response evidence in JSON
 Cypress.Commands.add('captureApiEvidence', (alias, stepName, additionalContext = {}) => {
   cy.get(alias).then((response) => {
-    const timestamp = new Date().toISOString();
+    const timestamp = getGMT7Timestamp();
     const testName = Cypress.currentTest.title;
     const specName = Cypress.spec.name.replace('.cy.js', '');
     
@@ -74,11 +82,7 @@ Cypress.Commands.add('captureApiEvidence', (alias, stepName, additionalContext =
 
 // Command to make API request with comprehensive evidence logging
 Cypress.Commands.add('apiRequestWithEvidence', (method, url, body, stepName, expectedStatus = null) => {
-  const timestamp = new Date().toISOString();
-  const testName = Cypress.currentTest.title;
-  const specName = Cypress.spec.name.replace('.cy.js', '');
-  
-  // Log the request step
+  // Log the request step (already uses GMT+7 via logStep)
   cy.logStep(`Making ${method} request to ${url}`, {
     method,
     url,
@@ -106,7 +110,7 @@ Cypress.Commands.add('generateEvidenceReport', () => {
   if (testEvidence.length > 0) {
     const testName = Cypress.currentTest.title;
     const specName = Cypress.spec.name.replace('.cy.js', '');
-    const timestamp = new Date().toISOString();
+    const timestamp = getGMT7Timestamp();
     
     const report = {
       metadata: {
@@ -114,6 +118,7 @@ Cypress.Commands.add('generateEvidenceReport', () => {
         test: testName,
         timestamp,
         totalSteps: testEvidence.length,
+        timezone: 'GMT+7',
         cypress: {
           version: Cypress.version,
           browser: Cypress.browser.name + ' ' + Cypress.browser.version
@@ -129,7 +134,7 @@ Cypress.Commands.add('generateEvidenceReport', () => {
 
 // Command to add custom evidence entry
 Cypress.Commands.add('addEvidence', (type, description, data = {}) => {
-  const timestamp = new Date().toISOString();
+  const timestamp = getGMT7Timestamp();
   const testName = Cypress.currentTest.title;
   const specName = Cypress.spec.name.replace('.cy.js', '');
   

@@ -3,17 +3,21 @@ describe('Books API', () => {
 
   beforeEach(() => {
     // Reset evidence for each test
+    const gmt7Time = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
     cy.addEvidence('TEST_START', 'Test execution started', {
-      timestamp: new Date().toISOString(),
-      testFile: 'books.cy.js'
+      timestamp: gmt7Time.toISOString().replace('Z', '+07:00'),
+      testFile: 'books.cy.js',
+      timezone: 'GMT+7'
     });
   });
 
   afterEach(() => {
     // Generate evidence report after each test
+    const gmt7Time = new Date(new Date().getTime() + (7 * 60 * 60 * 1000));
     cy.addEvidence('TEST_END', 'Test execution completed', {
-      timestamp: new Date().toISOString(),
-      result: 'completed'
+      timestamp: gmt7Time.toISOString().replace('Z', '+07:00'),
+      result: 'completed',
+      timezone: 'GMT+7'
     });
     cy.generateEvidenceReport();
   });

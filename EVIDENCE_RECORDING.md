@@ -15,6 +15,7 @@ Evidence is automatically stored in the following directories:
 - **API Evidence**: Complete request/response capture with headers, body, status, timing
 - **Validation Evidence**: Detailed validation results and assertions
 - **Test Metadata**: Timestamps, test names, spec files, Cypress version info
+- **GMT+7 Timezone**: All timestamps are recorded in GMT+7 (WIB/Western Indonesian Time) format
 
 ### 2. Enhanced API Logging
 - **Test Steps**: Each step logged with contextual data
@@ -73,7 +74,7 @@ Each test generates structured JSON evidence with:
 ### Individual Evidence Entries:
 ```json
 {
-  "timestamp": "2025-08-06T05:59:13.123Z",
+  "timestamp": "2025-08-06T13:35:13.123+07:00",
   "spec": "books",
   "test": "should create a book",
   "step": "Starting book creation test",
@@ -89,7 +90,7 @@ Each test generates structured JSON evidence with:
 ### API Evidence Entries:
 ```json
 {
-  "timestamp": "2025-08-06T05:59:14.456Z",
+  "timestamp": "2025-08-06T13:35:14.456+07:00",
   "spec": "books",
   "test": "should create a book",
   "step": "API create-book",
