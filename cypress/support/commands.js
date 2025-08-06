@@ -7,7 +7,146 @@
 // commands please read more here:
 // https://on.cypress.io/custom-commands
 // ***********************************************
-//
+
+// ===============================================
+// CUSTOM JSON EVIDENCE RECORDING COMMANDS
+// ===============================================
+
+let testEvidence = [];
+
+// Command to log test step with JSON evidence
+Cypress.Commands.add('logStep', (stepDescription, additionalData = {}) => {
+  const timestamp = new Date().toISOString();
+  const testName = Cypress.currentTest.title;
+  const specName = Cypress.spec.name.replace('.cy.js', '');
+  
+  const evidenceEntry = {
+    timestamp,
+    spec: specName,
+    test: testName,
+    step: stepDescription,
+    type: 'STEP',
+    data: additionalData
+  };
+  
+  testEvidence.push(evidenceEntry);
+  
+  cy.task('logEvidence', evidenceEntry);
+  cy.log(`📝 [${timestamp}] STEP: ${stepDescription}`);
+});
+
+// Command to capture API response evidence in JSON
+Cypress.Commands.add('captureApiEvidence', (alias, stepName, additionalContext = {}) => {
+  cy.get(alias).then((response) => {
+    const timestamp = new Date().toISOString();
+    const testName = Cypress.currentTest.title;
+    const specName = Cypress.spec.name.replace('.cy.js', '');
+    
+    const evidenceEntry = {
+      timestamp,
+      spec: specName,
+      test: testName,
+      step: `API ${stepName}`,
+      type: 'API_EVIDENCE',
+      request: {
+        method: response.requestHeaders ? 'Unknown' : response.method || 'Unknown',
+        url: response.url,
+        headers: response.requestHeaders || {},
+        body: response.requestBody || null
+      },
+      response: {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        body: response.body,
+        duration: response.duration
+      },
+      context: additionalContext
+    };
+    
+    testEvidence.push(evidenceEntry);
+    
+    cy.task('logEvidence', evidenceEntry);
+    cy.log(`📊 API Response (${stepName}): Status ${response.status}`);
+    cy.log('Response Body:', response.body);
+  });
+});
+
+// Command to make API request with comprehensive evidence logging
+Cypress.Commands.add('apiRequestWithEvidence', (method, url, body, stepName, expectedStatus = null) => {
+  const timestamp = new Date().toISOString();
+  const testName = Cypress.currentTest.title;
+  const specName = Cypress.spec.name.replace('.cy.js', '');
+  
+  // Log the request step
+  cy.logStep(`Making ${method} request to ${url}`, {
+    method,
+    url,
+    body,
+    expectedStatus
+  });
+  
+  const requestAlias = `@${stepName}Request`;
+  
+  cy.request({
+    method: method,
+    url: url,
+    body: body,
+    failOnStatusCode: false // Allow us to capture failed requests too
+  }).as(stepName + 'Request');
+  
+  cy.captureApiEvidence(requestAlias, stepName, {
+    expectedStatus,
+    stepName
+  });
+});
+
+// Command to generate final test evidence report
+Cypress.Commands.add('generateEvidenceReport', () => {
+  if (testEvidence.length > 0) {
+    const testName = Cypress.currentTest.title;
+    const specName = Cypress.spec.name.replace('.cy.js', '');
+    const timestamp = new Date().toISOString();
+    
+    const report = {
+      metadata: {
+        spec: specName,
+        test: testName,
+        timestamp,
+        totalSteps: testEvidence.length,
+        cypress: {
+          version: Cypress.version,
+          browser: Cypress.browser.name + ' ' + Cypress.browser.version
+        }
+      },
+      evidence: testEvidence
+    };
+    
+    cy.task('generateEvidenceReport', report);
+    testEvidence = []; // Reset for next test
+  }
+});
+
+// Command to add custom evidence entry
+Cypress.Commands.add('addEvidence', (type, description, data = {}) => {
+  const timestamp = new Date().toISOString();
+  const testName = Cypress.currentTest.title;
+  const specName = Cypress.spec.name.replace('.cy.js', '');
+  
+  const evidenceEntry = {
+    timestamp,
+    spec: specName,
+    test: testName,
+    step: description,
+    type: type.toUpperCase(),
+    data
+  };
+  
+  testEvidence.push(evidenceEntry);
+  cy.task('logEvidence', evidenceEntry);
+  cy.log(`📋 ${type}: ${description}`);
+});
+
 //
 // -- This is a parent command --
 // Cypress.Commands.add('login', (email, password) => { ... })
