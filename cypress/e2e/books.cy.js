@@ -40,7 +40,8 @@ describe('Books API', () => {
     cy.captureApiEvidence('@createBookRequest', 'create-book', {
       operation: 'CREATE_BOOK',
       expectedStatus: 201,
-      requestData: bookData
+      requestData: bookData,
+      method: 'POST'
     });
     
     cy.get('@createBookRequest').then((res) => {
@@ -74,7 +75,8 @@ describe('Books API', () => {
     
     cy.captureApiEvidence('@getAllBooksRequest', 'get-all-books', {
       operation: 'GET_ALL_BOOKS',
-      expectedStatus: 200
+      expectedStatus: 200,
+      method: 'GET'
     });
     
     cy.get('@getAllBooksRequest').then((res) => {
@@ -130,7 +132,8 @@ describe('Books API', () => {
     cy.captureApiEvidence('@getBookRequest', 'get-specific-book', {
       operation: 'GET_BOOK_BY_ID',
       expectedStatus: 200,
-      bookId
+      bookId,
+      method: 'GET'
     });
     
     cy.get('@getBookRequest').then((res) => {
@@ -169,7 +172,8 @@ describe('Books API', () => {
       operation: 'UPDATE_BOOK',
       expectedStatus: 200,
       bookId,
-      updateData
+      updateData,
+      method: 'PUT'
     });
     
     cy.get('@updateBookRequest').then((res) => {
@@ -204,7 +208,8 @@ describe('Books API', () => {
     cy.captureApiEvidence('@deleteBookRequest', 'delete-book', {
       operation: 'DELETE_BOOK',
       expectedStatus: 204,
-      bookId
+      bookId,
+      method: 'DELETE'
     });
     
     cy.get('@deleteBookRequest').then((res) => {

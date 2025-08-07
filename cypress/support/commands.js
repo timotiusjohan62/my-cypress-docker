@@ -50,6 +50,30 @@ Cypress.Commands.add('captureApiEvidence', (alias, stepName, additionalContext =
     const testName = Cypress.currentTest.title;
     const specName = Cypress.spec.name.replace('.cy.js', '');
     
+    // Extract method from the intercepted request or from the alias name pattern
+    let requestMethod = 'Unknown';
+    
+    // Try to get method from the response's allRequestResponses property
+    if (response.allRequestResponses && response.allRequestResponses.length > 0) {
+      const lastRequest = response.allRequestResponses[response.allRequestResponses.length - 1];
+      if (lastRequest && lastRequest['Request Method']) {
+        requestMethod = lastRequest['Request Method'];
+      }
+    }
+    
+    // Fallback: try to extract from response properties
+    if (requestMethod === 'Unknown') {
+      // Check if the response object has method information
+      if (response.method) {
+        requestMethod = response.method;
+      } else if (response.requestHeaders && response.requestHeaders[':method']) {
+        requestMethod = response.requestHeaders[':method'];
+      } else if (additionalContext && additionalContext.method) {
+        // Use method from context if provided
+        requestMethod = additionalContext.method;
+      }
+    }
+    
     const evidenceEntry = {
       timestamp,
       spec: specName,
@@ -57,7 +81,7 @@ Cypress.Commands.add('captureApiEvidence', (alias, stepName, additionalContext =
       step: `API ${stepName}`,
       type: 'API_EVIDENCE',
       request: {
-        method: response.requestHeaders ? 'Unknown' : response.method || 'Unknown',
+        method: requestMethod,
         url: response.url,
         headers: response.requestHeaders || {},
         body: response.requestBody || null
@@ -101,7 +125,8 @@ Cypress.Commands.add('apiRequestWithEvidence', (method, url, body, stepName, exp
   
   cy.captureApiEvidence(requestAlias, stepName, {
     expectedStatus,
-    stepName
+    stepName,
+    method
   });
 });
 
