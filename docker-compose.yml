@@ -46,6 +46,23 @@ services:
     networks:
       - app-network
 
+  jmeter:
+    build:
+      context: ./jmeter
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./jmeter/results:/tests/results
+    environment:
+      - TEST_PLAN=simple-load-test.jmx
+      - USERS=5
+      - RAMP_TIME=10
+      - HOST=backend
+      - PORT=4000
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge

@@ -59,9 +59,12 @@ jspm_packages/
 .env.production.local
 
 # Cypress
+cypress/evidence/
 cypress/screenshots/
 cypress/videos/
-cypress/downloads/
+
+# JMeter
+jmeter/results/
 cypress/fixtures/examples/
 cypress/evidence/
 

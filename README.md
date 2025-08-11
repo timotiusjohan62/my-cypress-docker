@@ -8,6 +8,7 @@ This project demonstrates a complete backend API testing infrastructure with:
 
 - **Backend API**: Node.js/Express application with PostgreSQL database
 - **Cypress E2E Tests**: Comprehensive API testing suite  
+- **JMeter Performance Tests**: Load and performance testing with Docker
 - **JSON Evidence Recording**: Structured evidence capture for all test activities
 - **Docker Environment**: Containerized setup for consistent testing
 
@@ -48,10 +49,19 @@ my-cypress-docker/
 │   │   ├── commands.js        # Custom evidence recording commands
 │   │   └── e2e.js             # Setup and configuration
 │   └── evidence/              # JSON evidence files (ignored by git)
+├── jmeter/                    # JMeter performance testing
+│   ├── Dockerfile             # JMeter container config
+│   ├── entrypoint.sh          # JMeter execution script
+│   ├── plans/                 # JMeter test plans (.jmx files)
+│   │   ├── simple-load-test.jmx    # Basic load test
+│   │   └── books-api-load-test.jmx # Comprehensive CRUD test
+│   ├── results/               # Performance test results
+│   └── README.md              # JMeter documentation
 ├── docker-compose.yml         # Multi-container orchestration
 ├── Dockerfile                 # Cypress container config
 ├── cypress.config.js          # Cypress configuration with custom tasks
 ├── package.json               # Test dependencies
+├── run-performance-tests.sh   # Performance testing script
 ├── EVIDENCE_RECORDING.md      # Evidence system documentation
 ├── .gitignore                 # Git ignore rules
 └── README.md                  # This file
@@ -162,6 +172,55 @@ Each test generates structured JSON evidence:
 
 ### Health Check Tests (`cypress/e2e/health.cy.js`)
 - ✅ Backend and database health validation (GET /health)
+
+### Performance Tests (JMeter)
+- 📊 **Simple Load Test**: Basic endpoint testing with configurable users
+- 🚀 **CRUD Load Test**: Comprehensive API operations under load
+- 📈 **HTML Reports**: Detailed performance dashboards
+- ⚡ **Response Time Analysis**: Latency and throughput metrics
+
+## 🚀 Performance Testing
+
+### Quick Performance Tests
+
+```bash
+# Simple performance test (5 users, 10s ramp-up)
+npm run test:performance:simple
+
+# Load test (10 users, 30s ramp-up, 60s duration)
+npm run test:performance:load
+
+# Custom performance test
+./run-performance-tests.sh books-api-load-test.jmx 20 60 120
+```
+
+### Advanced Performance Testing
+
+```bash
+# Run JMeter with custom parameters
+docker compose run --rm \
+  -e TEST_PLAN="books-api-load-test.jmx" \
+  -e USERS=50 \
+  -e DURATION=300 \
+  -e RAMP_TIME=60 \
+  jmeter
+
+# View HTML performance report
+open jmeter/results/html-report/index.html
+```
+
+### Performance Test Plans
+
+1. **Simple Load Test** (`simple-load-test.jmx`)
+   - Basic health and books endpoint testing
+   - 5 loops per user
+   - Good for smoke testing
+
+2. **Books API Load Test** (`books-api-load-test.jmx`)
+   - Full CRUD operations
+   - Dynamic data generation
+   - Realistic user simulation
+   - Duration-based testing
 
 ## 🐳 Docker Services
 

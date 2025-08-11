@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:e2e": "docker compose up cypress",
+    "test:performance": "./run-performance-tests.sh",
+    "test:performance:load": "./run-performance-tests.sh books-api-load-test.jmx 10 30 60",
+    "test:performance:simple": "./run-performance-tests.sh simple-load-test.jmx 5 10"
   },
   "keywords": [],
   "author": "",
