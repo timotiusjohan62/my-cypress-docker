@@ -17,7 +17,7 @@ services:
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - ${NETWORK_NAME:-app-network}
+      - app-network
 
   backend:
     build: 
@@ -43,7 +43,7 @@ services:
       timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
       retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - ${NETWORK_NAME:-app-network}
+      - app-network
 
   cypress:
     build:
@@ -66,7 +66,7 @@ services:
       - ./cypress/evidence:/e2e/cypress/evidence
       - ./cypress/e2e:/e2e/cypress/e2e
     networks:
-      - ${NETWORK_NAME:-app-network}
+      - app-network
 
   jmeter:
     build:
@@ -83,10 +83,10 @@ services:
       HOST: ${JMETER_HOST:-backend}
       PORT: ${JMETER_PORT:-4000}
     networks:
-      - ${NETWORK_NAME:-app-network}
+      - app-network
 
 networks:
-  ${NETWORK_NAME:-app-network}:
+  app-network:
     driver: bridge
 
 volumes:
