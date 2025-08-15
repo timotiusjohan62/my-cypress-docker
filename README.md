@@ -48,7 +48,8 @@ my-cypress-docker/
 │   ├── support/               # Support files and custom commands
 │   │   ├── commands.js        # Custom evidence recording commands
 │   │   └── e2e.js             # Setup and configuration
-│   └── evidence/              # JSON evidence files (ignored by git)
+│   ├── evidence/              # JSON evidence files (ignored by git)
+│   └── Dockerfile             # Cypress container config
 ├── jmeter/                    # JMeter performance testing
 │   ├── Dockerfile             # JMeter container config
 │   ├── entrypoint.sh          # JMeter execution script
@@ -58,7 +59,6 @@ my-cypress-docker/
 │   ├── results/               # Performance test results
 │   └── README.md              # JMeter documentation
 ├── docker-compose.yml         # Multi-container orchestration
-├── Dockerfile                 # Cypress container config
 ├── cypress.config.js          # Cypress configuration with custom tasks
 ├── package.json               # Test dependencies
 ├── run-performance-tests.sh   # Performance testing script
