@@ -13,7 +13,7 @@ module.exports = defineConfig({
         },
         
         logEvidence(evidence) {
-          const evidenceDir = path.join(process.cwd(), 'cypress', 'evidence');
+          const evidenceDir = process.env.CYPRESS_EVIDENCE_DIR || path.join(process.cwd(), 'cypress', 'evidence');
           if (!fs.existsSync(evidenceDir)) {
             fs.mkdirSync(evidenceDir, { recursive: true });
           }
@@ -38,7 +38,7 @@ module.exports = defineConfig({
         },
         
         generateEvidenceReport(data) {
-          const evidenceDir = path.join(process.cwd(), 'cypress', 'evidence');
+          const evidenceDir = process.env.CYPRESS_EVIDENCE_DIR || path.join(process.cwd(), 'cypress', 'evidence');
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const reportPath = path.join(evidenceDir, `test-evidence-report-${timestamp}.json`);
           
@@ -47,13 +47,42 @@ module.exports = defineConfig({
           return null;
         }
       });
+      
+      // Override config with environment variables if they exist
+      config.baseUrl = process.env.CYPRESS_BASE_URL || config.baseUrl || 'http://backend:4000';
+      config.video = process.env.CYPRESS_VIDEO === 'true' || false;
+      config.screenshotOnRunFailure = process.env.CYPRESS_SCREENSHOTS_ON_FAILURE === 'true' || false;
+      config.trashAssetsBeforeRuns = process.env.CYPRESS_TRASH_ASSETS_BEFORE_RUNS !== 'false';
+      config.viewportWidth = parseInt(process.env.CYPRESS_VIEWPORT_WIDTH) || 1280;
+      config.viewportHeight = parseInt(process.env.CYPRESS_VIEWPORT_HEIGHT) || 720;
+      
+      // Set spec pattern if provided
+      if (process.env.CYPRESS_SPEC_PATTERN) {
+        config.specPattern = process.env.CYPRESS_SPEC_PATTERN;
+      }
+      
+      // Set timeouts
+      if (process.env.TEST_TIMEOUT) {
+        config.defaultCommandTimeout = parseInt(process.env.TEST_TIMEOUT) || 60000;
+      }
+      
+      return config;
     },
-    baseUrl: 'http://backend:4000',
-    // Evidence recording configuration - Custom JSON logging only
-    video: false,
-    screenshotOnRunFailure: false,
-    trashAssetsBeforeRuns: true,
-    viewportWidth: 1280,
-    viewportHeight: 720
+    
+    // Default configuration (can be overridden by environment variables)
+    baseUrl: process.env.CYPRESS_BASE_URL || 'http://backend:4000',
+    video: process.env.CYPRESS_VIDEO === 'true' || false,
+    screenshotOnRunFailure: process.env.CYPRESS_SCREENSHOTS_ON_FAILURE === 'true' || false,
+    trashAssetsBeforeRuns: process.env.CYPRESS_TRASH_ASSETS_BEFORE_RUNS !== 'false',
+    viewportWidth: parseInt(process.env.CYPRESS_VIEWPORT_WIDTH) || 1280,
+    viewportHeight: parseInt(process.env.CYPRESS_VIEWPORT_HEIGHT) || 720,
+    defaultCommandTimeout: parseInt(process.env.TEST_TIMEOUT) || 60000,
+    
+    // Environment-specific settings
+    env: {
+      IS_TESTING: process.env.IS_TESTING || 'false',
+      DEBUG: process.env.DEBUG || 'false',
+      LOG_LEVEL: process.env.LOG_LEVEL || 'info'
+    }
   },
 });

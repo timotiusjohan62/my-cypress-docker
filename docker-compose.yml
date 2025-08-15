@@ -4,48 +4,69 @@ services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: testdb
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-testdb}
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
-      interval: 5s
-      retries: 5
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - app-network
+      - ${NETWORK_NAME:-app-network}
 
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      args:
+        NODE_ENV: ${NODE_ENV:-development}
     depends_on:
       db:
         condition: service_healthy
     environment:
-      PG_HOST: db
+      PG_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-testdb}
+      NODE_ENV: ${NODE_ENV:-development}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - "4000:4000"
+      - "${BACKEND_PORT:-4000}:4000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
     networks:
-      - app-network
+      - ${NETWORK_NAME:-app-network}
 
   cypress:
     build:
       context: .
+      dockerfile: cypress/Dockerfile
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      CYPRESS_BASE_URL: ${CYPRESS_BASE_URL:-http://backend:4000}
+      CYPRESS_VIDEO: ${CYPRESS_VIDEO:-false}
+      CYPRESS_SCREENSHOTS_ON_FAILURE: ${CYPRESS_SCREENSHOTS_ON_FAILURE:-false}
+      CYPRESS_VIEWPORT_WIDTH: ${CYPRESS_VIEWPORT_WIDTH:-1280}
+      CYPRESS_VIEWPORT_HEIGHT: ${CYPRESS_VIEWPORT_HEIGHT:-720}
+      CYPRESS_BROWSER: ${CYPRESS_BROWSER:-electron}
+      CYPRESS_HEADED: ${CYPRESS_HEADED:-false}
+      DEBUG: ${DEBUG:-false}
+      IS_TESTING: ${IS_TESTING:-true}
     volumes:
       - ./cypress/evidence:/e2e/cypress/evidence
       - ./cypress/e2e:/e2e/cypress/e2e
     networks:
-      - app-network
+      - ${NETWORK_NAME:-app-network}
 
   jmeter:
     build:
@@ -56,16 +77,16 @@ services:
     volumes:
       - ./jmeter/results:/tests/results
     environment:
-      - TEST_PLAN=simple-load-test.jmx
-      - USERS=5
-      - RAMP_TIME=10
-      - HOST=backend
-      - PORT=4000
+      TEST_PLAN: ${JMETER_TEST_PLAN:-simple-load-test.jmx}
+      USERS: ${JMETER_USERS:-5}
+      RAMP_TIME: ${JMETER_RAMP_TIME:-10}
+      HOST: ${JMETER_HOST:-backend}
+      PORT: ${JMETER_PORT:-4000}
     networks:
-      - app-network
+      - ${NETWORK_NAME:-app-network}
 
 networks:
-  app-network:
+  ${NETWORK_NAME:-app-network}:
     driver: bridge
 
 volumes:
