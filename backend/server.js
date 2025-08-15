@@ -46,8 +46,28 @@ app.get('/books/:id', async (req, res) => {
   }
 });
 
+// Helper: Validate book data
+function validateBookData(data) {
+  if (
+    typeof data.title !== 'string' ||
+    typeof data.author !== 'string'
+  ) {
+    return false;
+  }
+  if (
+    data.hasOwnProperty('published') &&
+    typeof data.published !== 'number'
+  ) {
+    return false;
+  }
+  return true;
+}
+
 app.post('/books', async (req, res) => {
   try {
+    if (!validateBookData(req.body)) {
+      return res.status(400).json({ error: 'Invalid data types in request body' });
+    }
     const [result] = await db('books').insert(req.body).returning('id');
     const id = result.id || result;  // Handle different return formats
     console.log('Created book with id:', id);
@@ -60,6 +80,9 @@ app.post('/books', async (req, res) => {
 
 app.put('/books/:id', async (req, res) => {
   try {
+    if (!validateBookData(req.body)) {
+      return res.status(400).json({ error: 'Invalid data types in request body' });
+    }
     const updated = await db('books').where({ id: req.params.id }).update(req.body);
     if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json({ success: true });
