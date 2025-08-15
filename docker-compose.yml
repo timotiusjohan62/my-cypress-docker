@@ -43,6 +43,7 @@ services:
         condition: service_healthy
     volumes:
       - ./cypress/evidence:/e2e/cypress/evidence
+      - ./cypress/e2e:/e2e/cypress/e2e
     networks:
       - app-network
 

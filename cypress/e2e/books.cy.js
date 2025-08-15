@@ -1,5 +1,6 @@
 describe('Books API', () => {
   let bookId;
+  let deletedBookId;
 
   beforeEach(() => {
     // Reset evidence for each test
@@ -202,6 +203,8 @@ describe('Books API', () => {
       method: 'DELETE',
       bookId
     });
+
+    deletedBookId = bookId; // Store the book ID to be deleted
     
     cy.request('DELETE', `http://backend:4000/books/${bookId}`).as('deleteBookRequest');
     
@@ -227,6 +230,88 @@ describe('Books API', () => {
       bookId,
       status: 'SUCCESS',
       operation: 'DELETED'
+    });
+  });
+
+  it('should verify the book is deleted', () => {
+    cy.logStep(`Starting verification of book deletion for ID: ${deletedBookId}`, {
+      operation: 'VERIFY_DELETION',
+      endpoint: `/books/${deletedBookId}`,
+      method: 'GET',
+      deletedBookId
+    });
+    
+    cy.request({
+      method: 'GET',
+      url: `http://backend:4000/books/${deletedBookId}`,
+      failOnStatusCode: false // Allow 404 to pass
+    }).as('verifyDeletionRequest');
+    
+    cy.captureApiEvidence('@verifyDeletionRequest', 'verify-deletion', {
+      operation: 'VERIFY_BOOK_DELETION',
+      expectedStatus: 404,
+      deletedBookId,
+      method: 'GET'
+    });
+    
+    cy.get('@verifyDeletionRequest').then((res) => {
+      expect(res.status).to.eq(404);
+      
+      cy.addEvidence('VALIDATION', 'Book deletion verification validation', {
+        expectedStatus: 404,
+        actualStatus: res.status,
+        deletedBookId,
+        deletionVerified: res.status === 404
+      });
+      
+      cy.logStep('Book deletion verified successfully', {
+        deletedBookId,
+        status: 'SUCCESS'
+      });
+    });
+  });
+
+  it('should not update a non-existent book', () => {
+    const nonExistentBookId = deletedBookId;
+    const updateData = { title: 'Non-existent Book' };
+    
+    cy.logStep(`Starting update test for non-existent book ID: ${nonExistentBookId}`, {
+      operation: 'UPDATE_NON_EXISTENT',
+      endpoint: `/books/${nonExistentBookId}`,
+      method: 'PUT',
+      bookId: nonExistentBookId,
+      updateData
+    });
+    
+    cy.request({
+      method: 'PUT',
+      url: `http://backend:4000/books/${nonExistentBookId}`,
+      body: updateData,
+      failOnStatusCode: false // Allow 404 to pass
+    }).as('updateNonExistentBookRequest');
+    
+    cy.captureApiEvidence('@updateNonExistentBookRequest', 'update-non-existent-book', {
+      operation: 'UPDATE_NON_EXISTENT_BOOK',
+      expectedStatus: 404,
+      bookId: nonExistentBookId,
+      updateData,
+      method: 'PUT'
+    });
+    
+    cy.get('@updateNonExistentBookRequest').then((res) => {
+      expect(res.status).to.eq(404);
+      
+      cy.addEvidence('VALIDATION', 'Non-existent book update validation', {
+        expectedStatus: 404,
+        actualStatus: res.status,
+        bookId: nonExistentBookId,
+        updateAttempted: res.status === 404
+      });
+      
+      cy.logStep('Update attempt for non-existent book completed successfully', {
+        bookId: nonExistentBookId,
+        status: 'SUCCESS'
+      });
     });
   });
 });
