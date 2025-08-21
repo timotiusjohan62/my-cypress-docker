@@ -1,6 +1,36 @@
 const express = require('express');
 const db = require('./db');
 const app = express();
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+
+app.use(express.json()); // <-- This must come before any routes
+
+// Authentication middleware using JWT
+function authenticate(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+  }
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    req.user = user;
+    next();
+  });
+}
+
+// Simple login endpoint for demo (username: admin, password: password)
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  // In production, validate against a real user store
+  if (username === 'admin' && password === 'password') {
+    const user = { username };
+    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '1h' });
+    return res.json({ token });
+  }
+  res.status(401).json({ error: 'Invalid credentials' });
+});
 
 // Run migrations on startup
 async function runMigrations() {
@@ -13,8 +43,6 @@ async function runMigrations() {
   }
 }
 
-app.use(express.json());
-
 app.get('/health', async (req, res) => {
   try {
     // Test database connection
@@ -25,7 +53,7 @@ app.get('/health', async (req, res) => {
   }
 });
 
-app.get('/books', async (req, res) => {
+app.get('/books', authenticate, async (req, res) => {
   try {
     const books = await db('books');
     res.json(books);
@@ -35,7 +63,7 @@ app.get('/books', async (req, res) => {
   }
 });
 
-app.get('/books/:id', async (req, res) => {
+app.get('/books/:id', authenticate, async (req, res) => {
   try {
     const book = await db('books').where({ id: req.params.id }).first();
     if (!book) return res.status(404).json({ error: 'Not found' });
@@ -63,7 +91,7 @@ function validateBookData(data) {
   return true;
 }
 
-app.post('/books', async (req, res) => {
+app.post('/books', authenticate, async (req, res) => {
   try {
     if (!validateBookData(req.body)) {
       return res.status(400).json({ error: 'Invalid data types in request body' });
@@ -78,7 +106,7 @@ app.post('/books', async (req, res) => {
   }
 });
 
-app.put('/books/:id', async (req, res) => {
+app.put('/books/:id', authenticate, async (req, res) => {
   try {
     if (!validateBookData(req.body)) {
       return res.status(400).json({ error: 'Invalid data types in request body' });
@@ -92,7 +120,7 @@ app.put('/books/:id', async (req, res) => {
   }
 });
 
-app.delete('/books/:id', async (req, res) => {
+app.delete('/books/:id', authenticate, async (req, res) => {
   try {
     const deleted = await db('books').where({ id: req.params.id }).del();
     if (!deleted) return res.status(404).json({ error: 'Not found' });
