@@ -94,11 +94,26 @@ app.get('/books', authenticate, async (req, res) => {
 
 app.get('/books/:id', authenticate, async (req, res) => {
   try {
-    const book = await db('books').where({ id: req.params.id }).first();
-    if (!book) return res.status(404).json({ error: 'Not found' });
+    const idValidation = validateBookId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({ 
+        error: 'Invalid ID format', 
+        message: idValidation.error
+      });
+    }
+    
+    const book = await db('books').where({ id: idValidation.id }).first();
+    if (!book) return res.status(404).json({ error: 'Book Not found' });
     res.json(book);
   } catch (error) {
     console.error('Error fetching book:', error);
+    // Additional check for database-specific ID errors
+    if (error.message && (error.message.includes('invalid input syntax') || error.message.includes('invalid integer'))) {
+      return res.status(400).json({ 
+        error: 'Invalid ID format', 
+        message: 'Book ID must be a positive integer' 
+      });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -237,16 +252,49 @@ function validateBookData(data) {
 
 app.delete('/books/:id', authenticate, async (req, res) => {
   try {
-    const deleted = await db('books').where({ id: req.params.id }).del();
+    const idValidation = validateBookId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({ 
+        error: 'Invalid ID format', 
+        message: idValidation.error
+      });
+    }
+    
+    const deleted = await db('books').where({ id: idValidation.id }).del();
     if (!deleted) return res.status(404).json({ error: 'Not found' });
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting book:', error);
+    // Additional check for database-specific ID errors
+    if (error.message && (error.message.includes('invalid input syntax') || error.message.includes('invalid integer'))) {
+      return res.status(400).json({ 
+        error: 'Invalid ID format', 
+        message: 'Book ID must be a positive integer' 
+      });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Helper function to check if ISBN exists
+// Helper function to validate ID format
+function validateBookId(id) {
+  // Check if ID is a string of digits only and is a positive integer
+  if (!/^\d+$/.test(id)) {
+    return { isValid: false, error: 'ID must contain only numbers' };
+  }
+  
+  const numericId = parseInt(id, 10);
+  if (numericId <= 0) {
+    return { isValid: false, error: 'ID must be a positive integer' };
+  }
+  
+  // Check if the number is too large for the database
+  if (numericId > Number.MAX_SAFE_INTEGER) {
+    return { isValid: false, error: 'ID is too large' };
+  }
+  
+  return { isValid: true, id: numericId };
+}
 async function isbnExists(isbn, excludeId = null) {
   const query = db('books').where({ isbn });
   if (excludeId) {
@@ -322,7 +370,15 @@ app.post('/books', authenticate, async (req, res) => {
 // PUT endpoint for updating books
 app.put('/books/:id', authenticate, async (req, res) => {
   try {
-    const bookId = req.params.id;
+    const idValidation = validateBookId(req.params.id);
+    if (!idValidation.isValid) {
+      return res.status(400).json({ 
+        error: 'Invalid ID format', 
+        message: idValidation.error
+      });
+    }
+    
+    const bookId = idValidation.id;
     
     // Check if book exists
     const existingBook = await db('books').where({ id: bookId }).first();
@@ -372,6 +428,13 @@ app.put('/books/:id', authenticate, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error updating book:', error);
+    // Additional check for database-specific ID errors
+    if (error.message && (error.message.includes('invalid input syntax') || error.message.includes('invalid integer'))) {
+      return res.status(400).json({ 
+        error: 'Invalid ID format', 
+        message: 'Book ID must be a positive integer' 
+      });
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
