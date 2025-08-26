@@ -84,10 +84,111 @@ app.get('/health', async (req, res) => {
 
 app.get('/books', authenticate, async (req, res) => {
   try {
-    const books = await db('books');
-    res.json(books);
+    // Extract pagination parameters from query string
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    
+    // Extract filter parameters
+    const { genre, author, year, isbn } = req.query;
+    
+    // Validate pagination parameters
+    if (page < 1) {
+      return res.status(400).json({ 
+        error: 'Invalid pagination', 
+        message: 'Page must be a positive integer (starting from 1)' 
+      });
+    }
+    
+    if (limit < 1 || limit > 100) {
+      return res.status(400).json({ 
+        error: 'Invalid pagination', 
+        message: 'Limit must be between 1 and 100' 
+      });
+    }
+    
+    // Validate filter parameters
+    if (year && (isNaN(parseInt(year)) || parseInt(year) < -3000 || parseInt(year) > new Date().getFullYear() + 10)) {
+      return res.status(400).json({ 
+        error: 'Invalid filter', 
+        message: 'Year must be a valid number between -3000 and ' + (new Date().getFullYear() + 10)
+      });
+    }
+    
+    // Build base query with filters
+    let query = db('books').select('*');
+    let countQuery = db('books');
+    
+    // Apply filters
+    if (genre) {
+      query = query.whereILike('genre', `%${genre}%`);
+      countQuery = countQuery.whereILike('genre', `%${genre}%`);
+    }
+    
+    if (author) {
+      query = query.whereILike('author', `%${author}%`);
+      countQuery = countQuery.whereILike('author', `%${author}%`);
+    }
+    
+    if (year) {
+      const yearInt = parseInt(year);
+      query = query.where('published', yearInt);
+      countQuery = countQuery.where('published', yearInt);
+    }
+    
+    if (isbn) {
+      // Exact match for ISBN
+      query = query.where('isbn', isbn);
+      countQuery = countQuery.where('isbn', isbn);
+    }
+    
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Get total count for pagination metadata with filters applied
+    const totalCountResult = await countQuery.count('id as count').first();
+    const totalCount = parseInt(totalCountResult.count);
+    
+    // Get paginated books with filters
+    const books = await query
+      .limit(limit)
+      .offset(offset)
+      .orderBy('id', 'asc'); // Consistent ordering for pagination
+    
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+    
+    // Build applied filters object for response
+    const appliedFilters = {};
+    if (genre) appliedFilters.genre = genre;
+    if (author) appliedFilters.author = author;
+    if (year) appliedFilters.year = parseInt(year);
+    if (isbn) appliedFilters.isbn = isbn;
+    
+    // Return paginated response with filters
+    res.json({
+      data: books,
+      filters: appliedFilters,
+      pagination: {
+        page: page,
+        limit: limit,
+        totalCount: totalCount,
+        totalPages: totalPages,
+        hasNext: hasNext,
+        hasPrev: hasPrev,
+        nextPage: hasNext ? page + 1 : null,
+        prevPage: hasPrev ? page - 1 : null
+      }
+    });
   } catch (error) {
     console.error('Error fetching books:', error);
+    // Handle database-specific errors for unsupported operations
+    if (error.message && error.message.includes('ILIKE')) {
+      // Fallback to LIKE for databases that don't support ILIKE
+      console.warn('ILIKE not supported, falling back to case-sensitive LIKE');
+      // You might want to implement a fallback here or use a different approach
+    } 
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -103,7 +204,7 @@ app.get('/books/:id', authenticate, async (req, res) => {
     }
     
     const book = await db('books').where({ id: idValidation.id }).first();
-    if (!book) return res.status(404).json({ error: 'Book Not found' });
+    if (!book) return res.status(404).json({ error: 'Not found' });
     res.json(book);
   } catch (error) {
     console.error('Error fetching book:', error);
