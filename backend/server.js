@@ -14,10 +14,110 @@ function authenticate(req, res, next) {
     return res.status(401).json({ error: 'Unauthorized: No token provided' });
   }
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    if (err) {
+      // Handle specific JWT errors
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Unauthorized: Token has expired' });
+      } else if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      } else if (err.name === 'NotBeforeError') {
+        return res.status(401).json({ error: 'Unauthorized: Token not active yet' });
+      } else {
+        // Generic error for any other JWT-related issues
+        return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      }
+    }
     req.user = user;
     next();
   });
+}
+
+// Enhanced security: Function to detect malicious content
+function detectMaliciousContent(value) {
+  if (typeof value !== 'string') return false;
+  
+  // Common XSS patterns
+  const maliciousPatterns = [
+    /<script[\s\S]*?>/i,                    // <script> tags
+    /<\/script>/i,                          // </script> closing tags
+    /javascript:/i,                         // javascript: protocol
+    /on\w+\s*=/i,                          // Event handlers (onclick, onload, etc.)
+    /<iframe[\s\S]*?>/i,                   // iframe tags
+    /<object[\s\S]*?>/i,                   // object tags
+    /<embed[\s\S]*?>/i,                    // embed tags
+    /<link[\s\S]*?>/i,                     // link tags
+    /<meta[\s\S]*?>/i,                     // meta tags
+    /vbscript:/i,                          // vbscript: protocol
+    /data:\s*text\/html/i,                 // data URLs with HTML
+    /expression\s*\(/i,                    // CSS expression()
+    /<\s*\w+[\s\S]*?on\w+\s*=/i,         // Any tag with event handlers
+    /&#x?[0-9a-f]+;/i,                    // HTML entities that might encode scripts
+    /\\\u[0-9a-f]{4}/i,                   // Unicode escapes
+    /%3c.*?script.*?%3e/i,                // URL-encoded script tags
+    /&lt;.*?script.*?&gt;/i,              // HTML-encoded script tags
+    /<\s*style[\s\S]*?>/i,                // style tags
+    /expression\s*\(/i,                    // CSS expressions
+    /behavior\s*:/i,                       // IE CSS behaviors
+    /binding\s*:/i,                        // XML data binding
+    /-moz-binding/i,                       // Mozilla CSS binding
+    /@@\w+/,                              // SQL injection patterns
+    /union\s+select/i,                     // SQL UNION attacks
+    /insert\s+into/i,                      // SQL INSERT attacks
+    /delete\s+from/i,                      // SQL DELETE attacks
+    /update\s+\w+\s+set/i,                // SQL UPDATE attacks
+    /drop\s+table/i,                       // SQL DROP attacks
+    /exec\s*\(/i,                         // Command execution
+    /eval\s*\(/i,                         // JavaScript eval()
+    /setTimeout\s*\(/i,                    // setTimeout with strings
+    /setInterval\s*\(/i,                   // setInterval with strings
+    /Function\s*\(/i,                     // Function constructor
+    /XMLHttpRequest/i,                     // AJAX requests
+    /ActiveXObject/i,                      // ActiveX objects
+    /document\s*\./i,                     // DOM manipulation
+    /window\s*\./i,                       // Window object access
+    /location\s*\./i,                     // Location object
+    /cookie/i,                            // Cookie access
+    /localStorage/i,                       // Local storage access
+    /sessionStorage/i,                     // Session storage access
+  ];
+  
+  // Check against all patterns
+  return maliciousPatterns.some(pattern => pattern.test(value));
+}
+
+// Enhanced security: Function to sanitize and validate all string fields
+function validateSecurityAndSanitize(data) {
+  const stringFields = ['title', 'author', 'isbn', 'genre', 'description', 'publisher'];
+  
+  for (const field of stringFields) {
+    if (data[field] && typeof data[field] === 'string') {
+      // Check for malicious content
+      if (detectMaliciousContent(data[field])) {
+        return {
+          isSecure: false,
+          maliciousField: field,
+          error: 'Invalid input data'
+        };
+      }
+      
+      // Trim whitespace
+      data[field] = data[field].trim();
+      
+      // Additional validation: Check for suspicious characters or patterns
+      if (data[field].includes('\0') || // Null bytes
+          data[field].includes('\r') || // Carriage return
+          data[field].includes('\n') || // Line feed
+          data[field].length !== data[field].replace(/[\x00-\x1f\x7f-\x9f]/g, '').length) { // Control characters
+        return {
+          isSecure: false,
+          maliciousField: field,
+          error: 'Invalid input data'
+        };
+      }
+    }
+  }
+  
+  return { isSecure: true };
 }
 
 // Simple login endpoint for demo (username: admin, password: password)
@@ -115,7 +215,7 @@ app.get('/books', authenticate, async (req, res) => {
     }
     
     // Build base query with filters
-    let query = db('books').select('*');
+    let query = db('books').select('*').orderBy('id', 'asc');
     let countQuery = db('books');
     
     // Apply filters
@@ -363,10 +463,13 @@ app.delete('/books/:id', authenticate, async (req, res) => {
     
     const deleted = await db('books').where({ id: idValidation.id }).del();
     if (!deleted) return res.status(404).json({ error: 'Not found' });
-    res.status(204).send();
+    
+    res.status(200).json({ 
+      message: 'Book deleted successfully',
+      id: idValidation.id 
+    });
   } catch (error) {
     console.error('Error deleting book:', error);
-    // Additional check for database-specific ID errors
     if (error.message && (error.message.includes('invalid input syntax') || error.message.includes('invalid integer'))) {
       return res.status(400).json({ 
         error: 'Invalid ID format', 
@@ -396,6 +499,7 @@ function validateBookId(id) {
   
   return { isValid: true, id: numericId };
 }
+
 async function isbnExists(isbn, excludeId = null) {
   const query = db('books').where({ isbn });
   if (excludeId) {
@@ -405,9 +509,18 @@ async function isbnExists(isbn, excludeId = null) {
   return !!book;
 }
 
-// POST endpoint for creating books
+// Enhanced POST endpoint for creating books with malicious data detection
 app.post('/books', authenticate, async (req, res) => {
   try {
+    // First check for malicious content in all string fields
+    const securityValidation = validateSecurityAndSanitize(req.body);
+    if (!securityValidation.isSecure) {
+      return res.status(400).json({ 
+        error: securityValidation.error
+      });
+    }
+
+    // Then proceed with standard validation
     const validation = validateBookData(req.body);
     if (!validation.isValid) {
       if (validation.missingFields) {
@@ -420,12 +533,6 @@ app.post('/books', authenticate, async (req, res) => {
         return res.status(400).json({ 
           error: "Validation failed", 
           message: `${validation.field} exceeds maximum length of ${validation.maxLength} characters (actual: ${validation.actualLength})` 
-        });
-      }
-      if (validation.error === 'invalid_type') {
-        return res.status(400).json({ 
-          error: "Validation failed", 
-          message: `Invalid type for ${validation.field}: expected ${validation.expected}, got ${validation.actual}` 
         });
       }
       if (validation.error === 'invalid_type') {
@@ -468,7 +575,7 @@ app.post('/books', authenticate, async (req, res) => {
   }
 });
 
-// PUT endpoint for updating books
+// Enhanced PUT endpoint for updating books with malicious data detection
 app.put('/books/:id', authenticate, async (req, res) => {
   try {
     const idValidation = validateBookId(req.params.id);
@@ -487,6 +594,15 @@ app.put('/books/:id', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Book not found' });
     }
 
+    // First check for malicious content in all string fields
+    const securityValidation = validateSecurityAndSanitize(req.body);
+    if (!securityValidation.isSecure) {
+      return res.status(400).json({ 
+        error: securityValidation.error
+      });
+    }
+
+    // Then proceed with standard validation
     const validation = validateBookData(req.body);
     if (!validation.isValid) {
       if (validation.missingFields) {
