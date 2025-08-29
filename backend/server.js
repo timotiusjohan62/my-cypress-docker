@@ -2,9 +2,25 @@ const express = require('express');
 const db = require('./db');
 const app = express();
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
 
 app.use(express.json()); // <-- This must come before any routes
+
+// Rate limiting middleware
+const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minutes
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: {
+    error: "Too many requests",
+    message: "You have exceeded the rate limit. Please try again later."
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
 
 // Authentication middleware using JWT
 function authenticate(req, res, next) {
